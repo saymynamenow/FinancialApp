@@ -39,6 +39,8 @@ dependencies:
   shared_preferences: ^2.3.2
   http: ^1.2.2
   provider: ^6.1.2
+  dart_jsonwebtoken: ^2.14.1
+  jwt_decoder: ^2.0.1
 
 dev_dependencies:
   flutter_test:

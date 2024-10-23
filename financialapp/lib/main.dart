@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_provider.dart';
 import 'package:provider/provider.dart';
+import './model/transaction.dart';
+import './services/transaction_services.dart';
 
 void main() {
   runApp(MultiProvider(
@@ -60,7 +62,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSwatch().copyWith(primary: Color.fromARGB(255,30, 42, 94), secondary: Color.fromARGB(255, 225, 215, 183)),
+        colorScheme: ColorScheme.fromSwatch().copyWith(primary: Color.fromARGB(255,30, 42, 94), secondary: Color.fromARGB(255, 255, 255, 255)),
         useMaterial3: true,
       ),
       home: SplashScreen(),
@@ -230,9 +232,13 @@ class financeApp extends StatefulWidget{
 }
 
 class _financeAppState extends State<financeApp> {
+  late Future<List<Transaction>> _transaction;
+  final TransactionService _transactionService = TransactionService();
+
   @override
   void initState(){
     super.initState();
+    _transaction = _transactionService.fetchTransaction();
    Provider.of<AuthProvider>(context, listen: false).checkLoginStatus();
   }
   @override
@@ -244,22 +250,156 @@ class _financeAppState extends State<financeApp> {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MyHomePage()));
   });
   }
+  
+    var colorScheme = Theme.of(context).colorScheme;
 
     return  
     Scaffold(
+      backgroundColor: colorScheme.primary,
+      appBar: AppBar(
+        backgroundColor: colorScheme.primary,
+        leading: Icon(Icons.verified_user, color: Colors.white,),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Welcome Back', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w300, color: Colors.white),),
+            Text('${authProvider.userData!['data']['username']}', style: GoogleFonts.poppins(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white))
+          ],
+        ),
+      ),
       body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          Text('Test'),
-          ElevatedButton(onPressed: () {
-            logout();
-          }, child: Text('Logout'))
+          SizedBox(height: 50,),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Card(
+                color: colorScheme.secondary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(40)
+                ),
+                child: SizedBox(
+                  width: 350,
+                  height: 250,
+                  child: Column(
+                    children: [
+                      SizedBox(height: 30,),
+                      Text('Total Balance', style: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 20),),
+                      Text('8.000.000', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 40),),
+                      SizedBox(height: 30,),
+                      Card(
+                        color: colorScheme.primary,
+                        child: SizedBox(
+                          height: 70,
+                          width: 250,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.arrow_downward, color: Colors.green,),
+                              Text('Income', style: GoogleFonts.poppins(color: colorScheme.secondary, fontSize: 13),),
+                                ],
+                              ),
+                              Text('1.764.000', style: GoogleFonts.poppins(color: Colors.white, fontSize: 18)),
+                                ],
+                              ),
+                              SizedBox(height: 40,  child: VerticalDivider()),
+
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                              Row(
+                                children: [
+                              Icon(Icons.arrow_upward, color: Colors.red,),
+                              Text('Expense', style: GoogleFonts.poppins(color: colorScheme.secondary, fontSize: 13)),
+                                ],
+                              ),
+                              Text('764.000', style: GoogleFonts.poppins(color: Colors.white, fontSize: 18)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              SizedBox(width: 40,),
+              Text('Recent Transaction', style: GoogleFonts.poppins(color: colorScheme.secondary, fontWeight: FontWeight.bold, fontSize: 18)),
+              SizedBox(height: 100, width: 80,),
+              InkWell(child: Text('See All',
+              style: GoogleFonts.poppins(color: colorScheme.secondary, fontWeight: FontWeight.w500, fontSize: 18)),
+              onTap: () {
+                print('ACIKIWIR');
+              },               
+              ),
+            ],
+          ),
+        FutureBuilder<List<Transaction>>(
+        future: _transaction,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text('No transactions found'));
+          } else {
+            return SingleChildScrollView(child: 
+             Column(
+              children: [
+                ListView.builder(itemCount: snapshot.data!.length,
+                  scrollDirection: Axis.vertical,
+                  shrinkWrap: true,
+
+                    itemBuilder: (context, index){
+                      final transaction = snapshot.data![index];
+                      return Align( 
+                        child: Card(
+                        child: SizedBox(
+                          width: 360,
+                          height: 100,
+                          child: ListTile(
+                            leading: Card(
+                              color: colorScheme.primary,
+                              child: SizedBox(
+                                height: 50,
+                                width: 50,
+                                child: Icon(transaction.type == 'Income' ? Icons.arrow_downward : Icons.arrow_upward, color: Colors.white,))),
+                            title: Text('${transaction.description}', style: GoogleFonts.poppins()),
+                            subtitle: Text('${transaction.type}', style: GoogleFonts.poppins()),
+                            trailing: Text('${transaction.amount}', style: GoogleFonts.poppins(fontSize: 15),),
+                          ),
+                        ),
+                      )
+                      );
+                    },
+                )
+              ],
+            )
+            );
+          }
+        },
+      ),
         ],
       )
     );
   }
+
+
 Future<void> logout() async{
-  Provider.of<AuthProvider>(context, listen: false).logout();
+    Provider.of<AuthProvider>(context, listen: false).logout();
+  }
 }
-}
+
 
