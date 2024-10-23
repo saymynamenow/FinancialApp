@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import authentification from './middleware/auth.js';
+import requesIp from 'request-ip'
 
 const app = express();
 app.use(bodyParser.json());
@@ -13,8 +14,11 @@ const prisma = new PrismaClient();
 const apiRouter = express.Router();
 app.use('/api', apiRouter);
 
+
 apiRouter.get('/', authentification,  (req,res) =>{
+    var clientIp = requesIp.getClientIp(req);
     res.json({message: 'Hello World!'});
+    console.log('Someone trying Try this API from IP: ', clientIp)
 })
 
 apiRouter.post('/register', async (req,res) =>{

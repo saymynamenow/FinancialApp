@@ -1,13 +1,57 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_provider.dart';
+import 'package:provider/provider.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(MultiProvider(
+    providers: [
+      ChangeNotifierProvider(
+        create: (_) => AuthProvider(),
+
+        
+        ),
+    ],
+    child: MyApp(),
+  ));
 }
+
+
+class SplashScreen extends StatefulWidget {
+  @override
+  _SplashScreenState createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Mengecek status login
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AuthProvider>(context, listen: false).checkLoginStatus().then((_) {
+        if (Provider.of<AuthProvider>(context, listen: false).isAuthenticated) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => financeApp()));
+        } else {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => MyHomePage()));
+        }
+        return Scaffold(
+          body: Center(child: CircularProgressIndicator(),)
+        );
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(child: CircularProgressIndicator()),  // Tampilkan loading saat pengecekan
+    );
+  }
+}
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -19,29 +63,40 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSwatch().copyWith(primary: Color.fromARGB(255,30, 42, 94), secondary: Color.fromARGB(255, 225, 215, 183)),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: SplashScreen(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({super.key});
 
-  final String title;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  @override
+  void initState(){
+    super.initState();
+    Provider.of<AuthProvider>(context,listen: false).checkLoginStatus();
+  }
 
   @override
   Widget build(BuildContext context) {
-                        checkLoginStatus(context);
-    var colorScheme = Theme.of(context).colorScheme;
+  final authProvider = Provider.of<AuthProvider>(context);
+
+  if(authProvider.isAuthenticated){
+    return financeApp();
+  }
+
+  var colorScheme = Theme.of(context).colorScheme;
   final TextEditingController username = TextEditingController();
   final TextEditingController password = TextEditingController();
-    return Scaffold(
+
+    return  
+    Scaffold(
       backgroundColor: colorScheme.primary,
 
       body: Center(
@@ -148,7 +203,9 @@ class _MyHomePageState extends State<MyHomePage> {
       // Jika sukses, ambil data token misalnya
       var responseData = jsonDecode(response.body);
       var token = responseData['token'];
-      saveToken(token);
+      await saveToken(token);
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => financeApp()));
+
     } else {
       print('Login failed with status: ${response.statusCode}');
     }
@@ -160,29 +217,49 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> saveToken(String token)async{
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('authToken', token);
+    await prefs.setString('token', token);
   }
-
-
 }
-  Future<void> checkLoginStatus(BuildContext context)async{
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('authToken');
-    if(token != null){
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => financeApp()));
-    }else{
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => financeApp()));
-    }
-  }
 
-class financeApp extends StatelessWidget{
+
+class financeApp extends StatefulWidget{
   financeApp({super.key});
-  
+
+  @override
+  State<financeApp> createState() => _financeAppState();
+}
+
+class _financeAppState extends State<financeApp> {
+  @override
+  void initState(){
+    super.initState();
+   Provider.of<AuthProvider>(context, listen: false).checkLoginStatus();
+  }
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Text('CENTER'),
-    );
+  final authProvider = Provider.of<AuthProvider>(context);
+
+  if(!authProvider.isAuthenticated){
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MyHomePage()));
+  });
   }
 
+    return  
+    Scaffold(
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('Test'),
+          ElevatedButton(onPressed: () {
+            logout();
+          }, child: Text('Logout'))
+        ],
+      )
+    );
+  }
+Future<void> logout() async{
+  Provider.of<AuthProvider>(context, listen: false).logout();
 }
+}
+
