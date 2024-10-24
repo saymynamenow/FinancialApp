@@ -358,12 +358,13 @@ class _financeAppState extends State<financeApp> {
             return SingleChildScrollView(child: 
              Column(
               children: [
-                ListView.builder(itemCount: snapshot.data!.length,
+                ListView.builder(itemCount: snapshot.data!.length >= 3 ? 3: snapshot.data!.length,
                   scrollDirection: Axis.vertical,
                   shrinkWrap: true,
 
                     itemBuilder: (context, index){
-                      final transaction = snapshot.data![index];
+                      final int startIndex = snapshot.data!.length - 3;
+                      final transaction = snapshot.data!.sublist(startIndex < 0 ? 0 : startIndex)[index];
                       return Align( 
                         child: Card(
                         child: SizedBox(
@@ -391,15 +392,75 @@ class _financeAppState extends State<financeApp> {
           }
         },
       ),
+      
         ],
-      )
+      ),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(50),
+          boxShadow: [
+            BoxShadow(
+              color: colorScheme.primary,
+              spreadRadius: 10.0,
+            )
+          ]
+        ),
+        child: SizedBox(
+          height: 70,
+          width: 70,
+          child: FloatingActionButton(
+            splashColor: Colors.black,
+            onPressed: (){
+            Navigator.push(context, MaterialPageRoute(builder: (context) => addTransaction()));
+          }, child: Icon(Icons.add),elevation: 5.0,shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),),
+        ),
+      ),
+
+      bottomNavigationBar: SizedBox(
+        height: 60,
+        child: BottomAppBar(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(child: IconButton(onPressed: (){print('1');}, icon: Icon(Icons.home))),
+              Expanded(child: Text(' ')),
+              Expanded(child: IconButton(onPressed: (){print('1');}, icon: Icon(Icons.history))),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+
     );
   }
+
 
 
 Future<void> logout() async{
     Provider.of<AuthProvider>(context, listen: false).logout();
   }
 }
+
+class addTransaction extends StatelessWidget{
+  addTransaction({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(height: 400,),
+          Text('Test'),
+          ElevatedButton(onPressed: (){
+            Navigator.pop(context);
+          }, child: Text('TANDA'))
+        ],
+      )
+    );
+  }
+}
+
 
 
