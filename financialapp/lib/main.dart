@@ -7,6 +7,8 @@ import 'auth_provider.dart';
 import 'package:provider/provider.dart';
 import './model/transaction.dart';
 import './services/transaction_services.dart';
+import './services/categroy_service.dart';
+import 'model/categroyModel.dart';
 
 void main() {
   runApp(MultiProvider(
@@ -263,7 +265,7 @@ class _financeAppState extends State<financeApp> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Welcome Back', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w300, color: Colors.white),),
-            Text('${authProvider.userData!['data']['username']}', style: GoogleFonts.poppins(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white))
+            Text('${authProvider.userData?['data']['username']}', style: GoogleFonts.poppins(fontSize: 30, fontWeight: FontWeight.bold, color: Colors.white))
           ],
         ),
       ),
@@ -358,7 +360,8 @@ class _financeAppState extends State<financeApp> {
             return SingleChildScrollView(child: 
              Column(
               children: [
-                ListView.builder(itemCount: snapshot.data!.length >= 3 ? 3: snapshot.data!.length,
+                ListView.builder(
+                  itemCount: snapshot.data!.length >= 3 ? 3: snapshot.data!.length,
                   scrollDirection: Axis.vertical,
                   shrinkWrap: true,
 
@@ -442,20 +445,64 @@ Future<void> logout() async{
   }
 }
 
-class addTransaction extends StatelessWidget{
+class addTransaction extends StatefulWidget{
   addTransaction({super.key});
+
+  @override
+  State<addTransaction> createState() => _addTransactionState();
+}
+
+class _addTransactionState extends State<addTransaction> {
   @override
   Widget build(BuildContext context) {
+    final TextEditingController textController = TextEditingController();
+    var colorScehme = Theme.of(context).colorScheme;
     return Scaffold(
-      body: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
+      appBar: AppBar(
+        foregroundColor: Colors.white,
+        backgroundColor: colorScehme.primary,
+      ),
+      backgroundColor: colorScehme.primary,
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          SizedBox(height: 400,),
-          Text('Test'),
-          ElevatedButton(onPressed: (){
-            Navigator.pop(context);
-          }, child: Text('TANDA'))
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('RP.',style: GoogleFonts.poppins(color: Colors.white, fontSize: 20),),
+              SizedBox(width: 10,),
+              SizedBox(
+                width: 300,
+                child: TextField(
+                  enabled: false,
+                  decoration: InputDecoration(
+                    border: UnderlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Colors.transparent,
+                        width: 2.0,
+                      ),
+                      
+
+                    ),
+                    disabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Colors.white,
+                        width: 2.0,
+                      )
+                    ),
+                    hintText: 'Please Input',
+                  ),
+                  controller: textController,
+                  style: GoogleFonts.poppins(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          categoryList(),
+          numericKeyPad(
+            controller: textController,
+          )
+
         ],
       )
     );
@@ -463,4 +510,145 @@ class addTransaction extends StatelessWidget{
 }
 
 
+class numericKeyPad extends StatefulWidget{
+  final TextEditingController controller;
+  const numericKeyPad({super.key, required this.controller});
+
+  @override
+  State<numericKeyPad> createState() => _numericKeyPadState();
+}
+
+class _numericKeyPadState extends State<numericKeyPad> {
+  late TextEditingController _controller;
+
+  @override
+  void initState(){
+    super.initState();
+    _controller = widget.controller;
+  }
+
+    @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            _buildButton('1'),
+            _buildButton('2'),
+            _buildButton('3')
+          ],
+        ),
+        Row(
+          children: [
+            _buildButton('4'),
+            _buildButton('5'),
+            _buildButton('6')
+          ],
+        ),
+        Row(
+          children: [
+            _buildButton('7'),
+            _buildButton('8'),
+            _buildButton('9')
+          ],
+        ),
+        Row(
+          children: [
+            _buildButton(''),
+            _buildButton('0'),
+            _buildButton('⌫', onPressed: _backspace)
+          ],
+        ),
+
+      ],
+    );
+  }
+
+  Widget _buildButton(String text, {VoidCallback ? onPressed}){
+    return Expanded(child: SizedBox(
+      height: 80,
+      child: TextButton(onPressed: onPressed ?? () => _inputString(text), child: Text(text, style: GoogleFonts.poppins(fontSize: 20,color: Colors.white),))));
+  }
+
+  void _inputString(String text){
+    final value = _controller.text + text;
+    _controller.text = value;
+  }
+
+  void _backspace() {
+    final value = _controller.text;
+    if(value.isNotEmpty){
+      _controller.text = value.substring(0, value.length - 1);
+    }
+  }
+}
+
+class categoryList extends StatefulWidget{
+  categoryList({super.key});
+
+  @override
+  State<categoryList> createState() => _categoryListState();
+}
+
+class _categoryListState extends State<categoryList> {
+  late Future<List<categoryModel>> _category;
+  final CategroyService _categroyService = CategroyService();
+  @override
+  void initState(){
+    super.initState();
+    _category = _categroyService.fetchCategory();
+  }
+  @override
+  Widget build(BuildContext context) {
+      return Column(
+        children: [
+              FutureBuilder<List<categoryModel>>(
+                
+              future: _category, 
+              builder: (context, snapshot){
+                if(snapshot.connectionState == ConnectionState.waiting){
+                    return Center(child: CircularProgressIndicator());
+                }else if(snapshot.hasError){
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }else if(!snapshot.hasData || snapshot.data!.isEmpty){
+                  return Center(child: Text('No Category found'));
+                }else{
+                  return SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        ListView.builder(
+
+                          itemCount: snapshot.data!.length,
+                          scrollDirection: Axis.vertical,
+                          shrinkWrap: true,
+                          itemBuilder: (context, index){
+                            final category = snapshot.data![index];
+                            return Align(
+                              child: Card(
+                                child: SizedBox(
+                                  width: 50,
+                                  height: 100,
+                                  child: Text(
+                                    '${category.name}'
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          )
+                      ],
+                    ),
+                  );
+                }
+              }
+              )
+        ],
+      );
+  }
+}
 

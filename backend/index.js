@@ -16,8 +16,8 @@ app.use('/api', apiRouter);
 
 
 apiRouter.get('/', authentification,  (req,res) =>{
-    var clientIp = requesIp.getClientIp(req);
     res.json({message: 'Hello World!'});
+    var clientIp = requesIp.getClientIp(req);
     console.log('Someone trying Try this API from IP: ', clientIp)
 })
 
@@ -224,7 +224,8 @@ apiRouter.delete('/transaction/:id', authentification, async(req,res) =>{
 apiRouter.get('/category', authentification, async(req,res) =>{
     
     try {
-        
+        var clientIp = requesIp.getClientIp(req);
+        console.log('Someone trying Try this API from IP: ', clientIp)
         const categoryData = await prisma.category.findMany({
             where:{
                 deletedAt: null,
