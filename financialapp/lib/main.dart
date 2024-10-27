@@ -445,6 +445,65 @@ Future<void> logout() async{
   }
 }
 
+class CategoryWidget extends StatefulWidget {
+  final List<String> type;
+  final Function(String) onCategorySelected;
+  final TextEditingController controller; // Tambahkan controller
+
+  const CategoryWidget({
+    Key? key, 
+    required this.type,
+    required this.onCategorySelected,
+    required this.controller, // Tambahkan ini
+  }) : super(key: key);
+
+  @override
+  State<CategoryWidget> createState() => _CategoryWidgetState();
+}
+
+class _CategoryWidgetState extends State<CategoryWidget> {
+  int? selectedIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        ...List.generate(widget.type.length, (index) {
+          bool isSelected = selectedIndex == index;
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                selectedIndex = index;
+                // Set text ke controller
+                widget.controller.text = widget.type[index];
+              });
+              widget.onCategorySelected(widget.type[index]);
+            },
+            child: SizedBox(
+              height: 50,
+              width: 130,
+              child: Card(
+                child: Row(
+                  children: [
+                    SizedBox(width: 5),
+                    Icon(isSelected 
+                      ? Icons.radio_button_checked_outlined 
+                      : Icons.radio_button_unchecked
+                    ),
+                    SizedBox(width: 10),
+                    Text(widget.type[index]),
+                  ],
+                )
+              ),
+            )
+          );
+        }),
+      ],
+    );
+  }
+}
+
 class addTransaction extends StatefulWidget{
   addTransaction({super.key});
 
@@ -453,9 +512,15 @@ class addTransaction extends StatefulWidget{
 }
 
 class _addTransactionState extends State<addTransaction> {
+    List type = ["Expense", "Income"];
+    int? selectedIndex;
+    String categoryName = "";
   @override
   Widget build(BuildContext context) {
+    
     final TextEditingController textController = TextEditingController();
+    final TextEditingController descTextController = TextEditingController();
+    final TextEditingController categoryTextController = TextEditingController();
     var colorScehme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
@@ -469,6 +534,20 @@ class _addTransactionState extends State<addTransaction> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              CategoryWidget(
+            type: const ["Expense", "Income"],
+            controller: categoryTextController,
+            onCategorySelected: (category) {
+              // Controller sudah diupdate di CategoryWidget
+              print('Selected category: ${categoryTextController.text}');
+            },
+          ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              
               Text('RP.',style: GoogleFonts.poppins(color: Colors.white, fontSize: 20),),
               SizedBox(width: 10,),
               SizedBox(
@@ -498,7 +577,38 @@ class _addTransactionState extends State<addTransaction> {
               ),
             ],
           ),
-          categoryList(),
+          
+          SizedBox(height: 50,),
+          categoryList(onCategorySelected: (selectedCategory){
+            categoryName = selectedCategory;
+            print('Selected Category is : ${selectedCategory}');
+          },),
+          SizedBox(height: 60,),
+          Column(
+            children: [
+              TextField(
+                textAlign: TextAlign.center,
+                controller: descTextController,
+                decoration: InputDecoration(
+                  hintText: "Description (Optional)",
+                  hintStyle: TextStyle(color: Colors.white),
+                ),
+              ),
+              SizedBox(
+                width: 400,
+                child: ElevatedButton(onPressed: () async{
+                  int amount = int.parse(textController.text);
+                      await PostData(categoryTextController.text, categoryName, amount, descTextController.text);
+                }, child: Text('data'),
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(1)
+                  )
+                ),
+                ),
+              ),
+            ],
+          ),
           numericKeyPad(
             controller: textController,
           )
@@ -506,6 +616,39 @@ class _addTransactionState extends State<addTransaction> {
         ],
       )
     );
+  }
+
+
+Future<void> PostData(String type, String category, int amount, String description) async{
+    final url = Uri.parse('http://10.0.2.2:3000/api/transaction');
+    final  prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('token');
+    try {
+      await http.post(url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-type': 'application/json',
+
+      },
+      body: 
+        jsonEncode({
+          'type': type,
+          'category': category,
+          'amount': amount,
+          'description' : description,
+        })
+      ).timeout(const Duration(seconds: 10)).then((response) =>{
+        if(response.statusCode == 200){
+          Navigator.pop(context)
+        }
+        else{
+          print('Failed To Post Data')
+        }
+      });
+
+    } catch (e) {
+      print(e);
+    }
   }
 }
 
@@ -589,7 +732,8 @@ class _numericKeyPadState extends State<numericKeyPad> {
 }
 
 class categoryList extends StatefulWidget{
-  categoryList({super.key});
+  final Function(String) onCategorySelected;
+  categoryList({super.key, required this.onCategorySelected});
 
   @override
   State<categoryList> createState() => _categoryListState();
@@ -598,6 +742,7 @@ class categoryList extends StatefulWidget{
 class _categoryListState extends State<categoryList> {
   late Future<List<categoryModel>> _category;
   final CategroyService _categroyService = CategroyService();
+  int? selectedIndex;
   @override
   void initState(){
     super.initState();
@@ -605,6 +750,7 @@ class _categoryListState extends State<categoryList> {
   }
   @override
   Widget build(BuildContext context) {
+    var colorScehme = Theme.of(context).colorScheme;
       return Column(
         children: [
               FutureBuilder<List<categoryModel>>(
@@ -619,29 +765,50 @@ class _categoryListState extends State<categoryList> {
                   return Center(child: Text('No Category found'));
                 }else{
                   return SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        ListView.builder(
+                    child: Wrap(
+                      spacing: 8.0, // Spasi horizontal antar card
+                      runSpacing: 8.0, // Spasi vertical antar baris
+                      alignment: WrapAlignment.start,
+                      children: List.generate( 
+                        snapshot.data!.length,
+                        (index) {
+                          final category = snapshot.data![index];
+                          bool isSelected = selectedIndex == index;
 
-                          itemCount: snapshot.data!.length,
-                          scrollDirection: Axis.vertical,
-                          shrinkWrap: true,
-                          itemBuilder: (context, index){
-                            final category = snapshot.data![index];
-                            return Align(
-                              child: Card(
-                                child: SizedBox(
-                                  width: 50,
-                                  height: 100,
-                                  child: Text(
-                                    '${category.name}'
+                          return GestureDetector(
+                          onTap: (){
+                            setState(() {
+                              selectedIndex = index;
+                            });
+                            widget.onCategorySelected(category.name);
+                          },
+                           child: SizedBox(
+                            width: MediaQuery.of(context).size.width / 3 - 16, 
+                            child: Card(
+                              color: colorScehme.tertiary,
+                              elevation: isSelected ? 8.0 : 2.0,
+                              child: SizedBox(
+                                height: 100,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: colorScehme.secondary,),
+                                      Text(
+                                        '${category.name}',
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.poppins(color: colorScehme.secondary),
+                                      ),
+                                    ],
                                   ),
                                 ),
+
                               ),
-                            );
-                          }
+                            ),
                           )
-                      ],
+                          );
+                        },
+                      ),
                     ),
                   );
                 }

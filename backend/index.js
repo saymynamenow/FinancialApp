@@ -133,7 +133,8 @@ apiRouter.post('/transaction', authentification, async(req,res) =>{
               }
             }
           });
-
+          var clientIp = requesIp.getClientIp(req);
+          console.log('Someone trying Try this API from IP: ', clientIp)
         res.json(transaction);
     } catch (error) {
         res.json({error: error})
